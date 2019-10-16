@@ -1,19 +1,28 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
-- master
+- none
 
 pool:
-  vmImage: 'ubuntu-latest'
+  vmImage: 'ubuntu-18.04'
 
-steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
-
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+stages:
+- stage: build
+  jobs:
+  - job: build_knative_serving
+    variables:
+      GOPATH: $(Agent.BuildDirectory)/go
+      GOROOT:
+      KNATIVE_SERVING_RELATIVE_PATH: go/src/knative.dev/serving
+    steps:
+    - checkout: self
+      path: $(KNATIVE_SERVING_RELATIVE_PATH)
+      displayName: Checkout branch '$(Build.SourceBranchName)'
+    - bash: |
+        sudo add-apt-repository ppa:longsleep/golang-backports
+        sudo apt-get update
+        sudo apt-get install golang-go
+        echo "##vso[task.setvariable variable=PATH]${PATH}:$(GOPATH)/bin"
+      displayName: 'Install deps'
+    - bash: |
+        cd $(Agent.BuildDirectory)/$(KNATIVE_SERVING_RELATIVE_PATH)
+        go test ./...
+      displayName: 'Run unit tests'
